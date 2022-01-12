@@ -196,7 +196,5 @@ class YQTB:
 
 if __name__ == '__main__':
     log = Logger('all.log', level='debug')
-    # fill = Fill()
-    # fill.main()
     yqtb = YQTB()
-    yqtb.test()
+    yqtb.main()
