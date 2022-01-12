@@ -6,6 +6,9 @@ import time
 import csv
 import smtplib
 from email.mime.text import MIMEText
+import warnings
+from log import Logger
+import sys
 
 
 # 单一用户的填报
@@ -16,10 +19,11 @@ class Fill:
         self.opt.add_argument("--disbale-gpu")
         # self.web = Chrome()  # 有头
         self.web = Chrome(options=self.opt)  # 把参数配置设置到浏览器中 无头
-        self.username = '2018301817'
-        self.password = "A565656a"  # 这里可以改为表单
+        self.username = '0'
+        self.password = '0'
         self.state = True
         self.name = ''
+        warnings.filterwarnings("ignore", category=DeprecationWarning)  # 关闭find_element_by_xpath一直的报错
 
     def open_url(self):
         self.web.get("http://yqtb.nwpu.edu.cn/wx/xg/yz-mobile/index.jsp")
@@ -30,11 +34,12 @@ class Fill:
         self.web.find_element_by_xpath('//*[@id="password"]').send_keys(self.password)
         login = self.web.find_element_by_xpath('//*[@id="fm1"]/div[4]/div/input[5]')
         login.click()  # 点击事件
+        # 发现这个函数更新了而且可以失败返回东西了，但是当你发现代码能跑后就不要改了
         try:
             everyday = self.web.find_element_by_xpath('/html/body/div/div[5]/ul/li[1]/a/i')
             everyday.click()
         except NoSuchElementException:
-            print('The username or password is not available')
+            log.logger.warning('The username or password is not available')
             self.state = False
 
     def fill(self):
@@ -52,14 +57,14 @@ class Fill:
         try:
             verify = self.web.find_element_by_xpath('//*[@id="rbxx_div"]/div[1]/h1/i').text
         except NoSuchElementException:
-            print('No success')  # 这一块只能用异常了
+            log.logger.warning('No success')  # 这一块只能用异常了
             self.state = False
         else:
             if '已提交' in verify:
-                print('Success')
+                log.logger.info('Success')
                 self.state = True
             else:
-                print('Unknown Error')
+                log.logger.error('Unknown Error')
                 self.state = False
 
     def obtain_name(self):
@@ -70,7 +75,7 @@ class Fill:
         today.click()
 
     def main(self):
-        print('The username is ' + self.username)
+        log.logger.info('The username is ' + self.username)
         self.open_url()
         self.login()
         if self.state:
@@ -82,13 +87,13 @@ class Fill:
         return self.state
 
     def test(self):
-        print("Start the test")
+        log.logger.debug("Start the test")
         self.open_url()
         self.login()
         # self.fill()
         # self.verify()
         self.obtain_name()
-        print(self.name)
+        log.logger.debug(self.name)
         time.sleep(5000)
 
 
@@ -117,7 +122,7 @@ class YQTB:
         try:
             single_fill.main()
         except NoSuchElementException:
-            print('Unknown Error Out')
+            log.logger.warning('Unknown Error Out')
         else:
             self.state = single_fill.state  # 默认为假，异常后还是假
             self.name = single_fill.name  # 获取姓名，不过有可能也获取不到
@@ -129,7 +134,7 @@ class YQTB:
             self.mail_user = line[1]
             self.mail_pass = line[2]
             self.sender = line[3]
-            print(line)
+            log.logger.info(line)
 
         try:
             self.smtpObj = smtplib.SMTP()
@@ -137,9 +142,9 @@ class YQTB:
             self.smtpObj.connect(self.mail_host, 25)
             # 登录到服务器
             self.smtpObj.login(self.mail_user, self.mail_pass)
-            print('Email login success')
+            log.logger.info('Email login success')
         except smtplib.SMTPException as e:
-            print('Error email login', e)  # 打印错误
+            log.logger.error('Error email login', e)  # 打印错误
 
     def email_send(self):
         if self.state:
@@ -163,10 +168,10 @@ class YQTB:
 
         self.smtpObj.sendmail(
             self.sender, self.id_list[self.i]['email'], message.as_string())
-        print('Send email successfully')
+        log.logger.info('Send email successfully')
 
     def main(self):
-        print('Start the progress')
+        log.logger.info('Start the progress')
         self.state = False
         self.read_csv()
         self.email_login()
@@ -179,19 +184,17 @@ class YQTB:
             self.email_send()
             self.i += 1
         self.smtpObj.quit()
-        print('Finish the progress')
+        log.logger.info('Finish the progress')
 
     def test(self):
-        print('Start test')
+        log.logger.debug('Start test')
         self.read_csv()
         self.email_login()
-        # print(self.id_list)e
         self.fill()
-        self.email_send()
+        # self.email_send()
 
 
 if __name__ == '__main__':
-    # fill = Fill()
-    # fill.main()
+    log = Logger('all.log', level='debug')
     yqtb = YQTB()
     yqtb.main()
